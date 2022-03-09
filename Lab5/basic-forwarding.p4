@@ -62,9 +62,25 @@ parser MyParser(packet_in packet,
 
     /* ----------------------------------------------
        STEP 1: TODO - Write packet parser
-       ---------------------------------------------- */
+    ---------------------------------------------- */
+    state start {
+	transition parse_ethernet;
+    }
 
+    state parse_ethernet {
+	packet.extract(hdr.ethernet);
+	transition parse_ipv4;
+    }
 
+    state parse_ipv4 {
+	packet.extract(hdr.ipv4);
+	transition parse_ipv4;
+    }
+
+    state parse_udp {
+	packet.extract(hdr.udp);
+	transition accept;
+    }
 }
 
 /*************************************************************************
@@ -90,13 +106,24 @@ control MyIngress(inout headers hdr,
  /* -------------------------------------------------------------------
     STEP 3: TODO - Specify forwarding action (i.e., set output port)
     ------------------------------------------------------------------- */
-    action ipv4_forward(macAddr_t dstAddr) {
+    action ipv4_forward(egressSpec_t port) {
+	standard_metadata.egress_spec = port;
     }
 
  /* ----------------------------------------------
     STEP 2: TODO - Define match-action table
     ---------------------------------------------- */
     table ipv4_lpm {
+	key = {
+	    hdr.ipv4.dstAddr : exact;
+	}
+
+	actions = {
+	    drop;
+	    ipv4_forward;
+	}
+
+	size = 10;
     }
 
     apply {
@@ -149,7 +176,9 @@ control MyDeparser(packet_out packet, in headers hdr) {
      /* ----------------------------------------------
         STEP 4: TODO - Write packet deparser
         ---------------------------------------------- */
-
+	packet.emit(hdr.ethernet);
+	packet.emit(hdr.ipv4);
+	packet.emit(hdr.udp);
     }
 }
 
