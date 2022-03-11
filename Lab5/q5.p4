@@ -75,7 +75,7 @@ parser MyParser(packet_in packet,
                 out headers hdr,
                 inout metadata meta,
                 inout standard_metadata_t standard_metadata) {
-
+	//Writing the packet parser (Q1 step 1 - start, parse_ethernet, parse_ipv4, parse_udp)
 	state start {
 		transition parse_ethernet;
 	}
@@ -90,7 +90,7 @@ parser MyParser(packet_in packet,
 		transition parse_udp;
 	}
 
-    state parse_udp {
+    	state parse_udp {
 		packet.extract(hdr.udp);
 		transition accept;
 	}
@@ -120,12 +120,12 @@ control MyIngress(inout headers hdr,
     action drop() {
         mark_to_drop(standard_metadata);
     }
-
+    //Specify forwarding action (Q1 step 3 - set output port,)
     action ipv4_forward(egressSpec_t port, bit<48> newDstMac) {
 		standard_metadata.egress_spec = port;
 		hdr.ethernet.dstAddr = newDstMac;
     }
-
+    //define match-action table(Q1 step 2 - ipv4_lpm , apply)
     table ipv4_lpm {
 		key = {
 			hdr.ipv4.dstAddr : exact;
@@ -196,7 +196,8 @@ control MyComputeChecksum(inout headers  hdr, inout metadata meta) {
 *************************************************************************/
 
 control MyDeparser(packet_out packet, in headers hdr) {
-    apply {
+    apply {	
+    		//Write packet deparser (Q1 step 4)
 		packet.emit(hdr.ethernet);
 		packet.emit(hdr.ipv4);
 		packet.emit(hdr.udp);
