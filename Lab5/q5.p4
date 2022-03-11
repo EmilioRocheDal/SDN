@@ -47,7 +47,6 @@ header udp_t {
 // ++++++++++++++++++++++++++++
 // |          32 bits         |
 // ++++++++++++++++++++++++++++
-
 header stats_t {
     bit<32>	  totalPackets;
 }
@@ -113,16 +112,17 @@ control MyVerifyChecksum(inout headers hdr, inout metadata meta) {
 control MyIngress(inout headers hdr,
                   inout metadata meta,
                   inout standard_metadata_t standard_metadata) {
-
-	register<bit<32>>(1) packetCounter;
+//defining the register (Q4 step 1 - register<bit<32>>(1) ...)
+register<bit<32>>(1) packetCounter;
     bit<32> tmp = 32w0;
 
     action drop() {
         mark_to_drop(standard_metadata);
     }
-    //Specify forwarding action (Q1 step 3 - set output port,)
+    //Specify forwarding action (Q1 step 3 - set output port, Q3 - setting dst mac address)
     action ipv4_forward(egressSpec_t port, bit<48> newDstMac) {
 		standard_metadata.egress_spec = port;
+		//here it is set
 		hdr.ethernet.dstAddr = newDstMac;
     }
     //define match-action table(Q1 step 2 - ipv4_lpm , apply)
@@ -143,8 +143,8 @@ control MyIngress(inout headers hdr,
         if (hdr.ipv4.isValid()) {
             ipv4_lpm.apply();
         }
-
-		packetCounter.read(tmp, 0);
+	//reading, updating and writing the 'counter' back (Q4 step 2 - packetCounter.read and packetCounter.write)
+	packetCounter.read(tmp, 0);
         packetCounter.write(0, tmp+1);
 
 	/* -----------------------------------------------------------------------------
