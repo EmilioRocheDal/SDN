@@ -3,7 +3,10 @@
     {
       "name" : "scalars_0",
       "id" : 0,
-      "fields" : []
+      "fields" : [
+        ["tmp", 32, false],
+        ["tmp_0", 32, false]
+      ]
     },
     {
       "name" : "standard_metadata",
@@ -69,6 +72,13 @@
         ["length_", 16, false],
         ["checksum", 16, false]
       ]
+    },
+    {
+      "name" : "stats_t",
+      "id" : 5,
+      "fields" : [
+        ["totalPackets", 32, false]
+      ]
     }
   ],
   "headers" : [
@@ -104,6 +114,13 @@
       "name" : "udp",
       "id" : 4,
       "header_type" : "udp_t",
+      "metadata" : false,
+      "pi_omit" : true
+    },
+    {
+      "name" : "switchStats",
+      "id" : 5,
+      "header_type" : "stats_t",
       "metadata" : false,
       "pi_omit" : true
     }
@@ -179,24 +196,37 @@
       "name" : "deparser",
       "id" : 0,
       "source_info" : {
-        "filename" : "q1.p4",
-        "line" : 174,
+        "filename" : "q5.p4",
+        "line" : 198,
         "column" : 8,
         "source_fragment" : "MyDeparser"
       },
-      "order" : ["ethernet", "ipv4", "udp"]
+      "order" : ["ethernet", "ipv4", "udp", "switchStats"]
     }
   ],
   "meter_arrays" : [],
   "counter_arrays" : [],
-  "register_arrays" : [],
+  "register_arrays" : [
+    {
+      "name" : "MyIngress.packetCounter",
+      "id" : 0,
+      "source_info" : {
+        "filename" : "q5.p4",
+        "line" : 116,
+        "column" : 21,
+        "source_fragment" : "packetCounter"
+      },
+      "size" : 1,
+      "bitwidth" : 32
+    }
+  ],
   "calculations" : [
     {
       "name" : "calc",
       "id" : 0,
       "source_info" : {
-        "filename" : "q1.p4",
-        "line" : 152,
+        "filename" : "q5.p4",
+        "line" : 176,
         "column" : 8,
         "source_fragment" : "update_checksum( ..."
       },
@@ -271,8 +301,8 @@
             }
           ],
           "source_info" : {
-            "filename" : "q1.p4",
-            "line" : 103,
+            "filename" : "q5.p4",
+            "line" : 120,
             "column" : 8,
             "source_fragment" : "mark_to_drop(standard_metadata)"
           }
@@ -286,6 +316,10 @@
         {
           "name" : "port",
           "bitwidth" : 9
+        },
+        {
+          "name" : "newDstMac",
+          "bitwidth" : 48
         }
       ],
       "primitives" : [
@@ -302,10 +336,181 @@
             }
           ],
           "source_info" : {
-            "filename" : "q1.p4",
-            "line" : 110,
+            "filename" : "q5.p4",
+            "line" : 124,
             "column" : 2,
             "source_fragment" : "standard_metadata.egress_spec = port"
+          }
+        },
+        {
+          "op" : "assign",
+          "parameters" : [
+            {
+              "type" : "field",
+              "value" : ["ethernet", "dstAddr"]
+            },
+            {
+              "type" : "runtime_data",
+              "value" : 1
+            }
+          ],
+          "source_info" : {
+            "filename" : "q5.p4",
+            "line" : 126,
+            "column" : 2,
+            "source_fragment" : "hdr.ethernet.dstAddr = newDstMac"
+          }
+        }
+      ]
+    },
+    {
+      "name" : "act",
+      "id" : 3,
+      "runtime_data" : [],
+      "primitives" : [
+        {
+          "op" : "register_read",
+          "parameters" : [
+            {
+              "type" : "field",
+              "value" : ["scalars", "tmp_0"]
+            },
+            {
+              "type" : "register_array",
+              "value" : "MyIngress.packetCounter"
+            },
+            {
+              "type" : "hexstr",
+              "value" : "0x00000000"
+            }
+          ],
+          "source_info" : {
+            "filename" : "q5.p4",
+            "line" : 147,
+            "column" : 1,
+            "source_fragment" : "packetCounter.read(tmp, 0)"
+          }
+        },
+        {
+          "op" : "assign",
+          "parameters" : [
+            {
+              "type" : "field",
+              "value" : ["scalars", "tmp"]
+            },
+            {
+              "type" : "expression",
+              "value" : {
+                "type" : "expression",
+                "value" : {
+                  "op" : "&",
+                  "left" : {
+                    "type" : "expression",
+                    "value" : {
+                      "op" : "+",
+                      "left" : {
+                        "type" : "field",
+                        "value" : ["scalars", "tmp_0"]
+                      },
+                      "right" : {
+                        "type" : "hexstr",
+                        "value" : "0x00000001"
+                      }
+                    }
+                  },
+                  "right" : {
+                    "type" : "hexstr",
+                    "value" : "0xffffffff"
+                  }
+                }
+              }
+            }
+          ],
+          "source_info" : {
+            "filename" : "q5.p4",
+            "line" : 148,
+            "column" : 31,
+            "source_fragment" : "tmp+1"
+          }
+        },
+        {
+          "op" : "register_write",
+          "parameters" : [
+            {
+              "type" : "register_array",
+              "value" : "MyIngress.packetCounter"
+            },
+            {
+              "type" : "hexstr",
+              "value" : "0x00000000"
+            },
+            {
+              "type" : "field",
+              "value" : ["scalars", "tmp"]
+            }
+          ],
+          "source_info" : {
+            "filename" : "q5.p4",
+            "line" : 148,
+            "column" : 8,
+            "source_fragment" : "packetCounter.write(0, tmp+1)"
+          }
+        },
+        {
+          "op" : "add_header",
+          "parameters" : [
+            {
+              "type" : "header",
+              "value" : "switchStats"
+            }
+          ],
+          "source_info" : {
+            "filename" : "q5.p4",
+            "line" : 154,
+            "column" : 2,
+            "source_fragment" : "hdr.switchStats.setValid()"
+          }
+        },
+        {
+          "op" : "assign",
+          "parameters" : [
+            {
+              "type" : "field",
+              "value" : ["switchStats", "totalPackets"]
+            },
+            {
+              "type" : "expression",
+              "value" : {
+                "type" : "expression",
+                "value" : {
+                  "op" : "&",
+                  "left" : {
+                    "type" : "expression",
+                    "value" : {
+                      "op" : "+",
+                      "left" : {
+                        "type" : "field",
+                        "value" : ["scalars", "tmp_0"]
+                      },
+                      "right" : {
+                        "type" : "hexstr",
+                        "value" : "0x00000001"
+                      }
+                    }
+                  },
+                  "right" : {
+                    "type" : "hexstr",
+                    "value" : "0xffffffff"
+                  }
+                }
+              }
+            }
+          ],
+          "source_info" : {
+            "filename" : "q5.p4",
+            "line" : 155,
+            "column" : 2,
+            "source_fragment" : "hdr.switchStats.totalPackets = tmp+1"
           }
         }
       ]
@@ -316,8 +521,8 @@
       "name" : "ingress",
       "id" : 0,
       "source_info" : {
-        "filename" : "q1.p4",
-        "line" : 99,
+        "filename" : "q5.p4",
+        "line" : 112,
         "column" : 8,
         "source_fragment" : "MyIngress"
       },
@@ -327,8 +532,8 @@
           "name" : "MyIngress.ipv4_lpm",
           "id" : 0,
           "source_info" : {
-            "filename" : "q1.p4",
-            "line" : 116,
+            "filename" : "q5.p4",
+            "line" : 129,
             "column" : 10,
             "source_fragment" : "ipv4_lpm"
           },
@@ -348,17 +553,46 @@
           "direct_meters" : null,
           "action_ids" : [1, 2, 0],
           "actions" : ["MyIngress.drop", "MyIngress.ipv4_forward", "NoAction"],
-          "base_default_next" : null,
+          "base_default_next" : "tbl_act",
           "next_tables" : {
-            "MyIngress.drop" : null,
-            "MyIngress.ipv4_forward" : null,
-            "NoAction" : null
+            "MyIngress.drop" : "tbl_act",
+            "MyIngress.ipv4_forward" : "tbl_act",
+            "NoAction" : "tbl_act"
           },
           "default_entry" : {
             "action_id" : 0,
             "action_const" : false,
             "action_data" : [],
             "action_entry_const" : false
+          }
+        },
+        {
+          "name" : "tbl_act",
+          "id" : 1,
+          "source_info" : {
+            "filename" : "q5.p4",
+            "line" : 147,
+            "column" : 1,
+            "source_fragment" : "packetCounter.read(tmp, 0); ..."
+          },
+          "key" : [],
+          "match_type" : "exact",
+          "type" : "simple",
+          "max_size" : 1024,
+          "with_counters" : false,
+          "support_timeout" : false,
+          "direct_meters" : null,
+          "action_ids" : [3],
+          "actions" : ["act"],
+          "base_default_next" : null,
+          "next_tables" : {
+            "act" : null
+          },
+          "default_entry" : {
+            "action_id" : 3,
+            "action_const" : true,
+            "action_data" : [],
+            "action_entry_const" : true
           }
         }
       ],
@@ -368,8 +602,8 @@
           "name" : "node_2",
           "id" : 0,
           "source_info" : {
-            "filename" : "q1.p4",
-            "line" : 130,
+            "filename" : "q5.p4",
+            "line" : 143,
             "column" : 12,
             "source_fragment" : "hdr.ipv4.isValid()"
           },
@@ -384,8 +618,8 @@
               }
             }
           },
-          "false_next" : null,
-          "true_next" : "MyIngress.ipv4_lpm"
+          "true_next" : "MyIngress.ipv4_lpm",
+          "false_next" : "tbl_act"
         }
       ]
     },
@@ -393,8 +627,8 @@
       "name" : "egress",
       "id" : 1,
       "source_info" : {
-        "filename" : "q1.p4",
-        "line" : 140,
+        "filename" : "q5.p4",
+        "line" : 164,
         "column" : 8,
         "source_fragment" : "MyEgress"
       },
@@ -409,8 +643,8 @@
       "name" : "cksum",
       "id" : 0,
       "source_info" : {
-        "filename" : "q1.p4",
-        "line" : 152,
+        "filename" : "q5.p4",
+        "line" : 176,
         "column" : 8,
         "source_fragment" : "update_checksum( ..."
       },
@@ -480,7 +714,7 @@
       ["standard_metadata", "recirculate_flag"]
     ]
   ],
-  "program" : "./q1.p4i",
+  "program" : "./q5.p4i",
   "__meta__" : {
     "version" : [2, 18],
     "compiler" : "https://github.com/p4lang/p4c"

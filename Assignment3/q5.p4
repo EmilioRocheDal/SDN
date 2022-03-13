@@ -40,6 +40,17 @@ header udp_t {
     bit<16> checksum;
 }
 
+/* ---------------------------------------
+    STEP 1: TODO - Define your own header
+   --------------------------------------- */
+
+// ++++++++++++++++++++++++++++
+// |          32 bits         |
+// ++++++++++++++++++++++++++++
+header stats_t {
+    bit<32>	  totalPackets;
+}
+
 struct metadata {
     /* empty */
 }
@@ -48,6 +59,11 @@ struct headers {
     ethernet_t   ethernet;
     ipv4_t       ipv4;
     udp_t		 udp;
+
+/* -------------------------------------------------------------
+    STEP 2: TODO - Add your header to the packet header vector
+   ------------------------------------------------------------- */
+	stats_t		 switchStats;
 }
 
 /*************************************************************************
@@ -58,10 +74,7 @@ parser MyParser(packet_in packet,
                 out headers hdr,
                 inout metadata meta,
                 inout standard_metadata_t standard_metadata) {
-
-    /* ----------------------------------------------
-       STEP 1: TODO - Write packet parser
-       ---------------------------------------------- */
+	//Writing the packet parser (Q1 step 1 - start, parse_ethernet, parse_ipv4, parse_udp)
 	state start {
 		transition parse_ethernet;
 	}
@@ -76,7 +89,7 @@ parser MyParser(packet_in packet,
 		transition parse_udp;
 	}
 
-    state parse_udp {
+    	state parse_udp {
 		packet.extract(hdr.udp);
 		transition accept;
 	}
@@ -99,20 +112,20 @@ control MyVerifyChecksum(inout headers hdr, inout metadata meta) {
 control MyIngress(inout headers hdr,
                   inout metadata meta,
                   inout standard_metadata_t standard_metadata) {
+//defining the register (Q4 step 1 - register<bit<32>>(1) ...)
+register<bit<32>>(1) packetCounter;
+    bit<32> tmp = 32w0;
+
     action drop() {
         mark_to_drop(standard_metadata);
     }
-
- /* -------------------------------------------------------------------
-    STEP 3: TODO - Specify forwarding action (i.e., set output port)
-    ------------------------------------------------------------------- */
-    action ipv4_forward(egressSpec_t port) {
+    //Specify forwarding action (Q1 step 3 - set output port, Q3 - setting dst mac address)
+    action ipv4_forward(egressSpec_t port, bit<48> newDstMac) {
 		standard_metadata.egress_spec = port;
+		//here it is set
+		hdr.ethernet.dstAddr = newDstMac;
     }
-
- /* ----------------------------------------------
-    STEP 2: TODO - Define match-action table
-    ---------------------------------------------- */
+    //define match-action table(Q1 step 2 - ipv4_lpm , apply)
     table ipv4_lpm {
 		key = {
 			hdr.ipv4.dstAddr : exact;
@@ -130,6 +143,17 @@ control MyIngress(inout headers hdr,
         if (hdr.ipv4.isValid()) {
             ipv4_lpm.apply();
         }
+	//reading, updating and writing the 'counter' back (Q4 step 2 - packetCounter.read and packetCounter.write)
+	packetCounter.read(tmp, 0);
+        packetCounter.write(0, tmp+1);
+
+	/* -----------------------------------------------------------------------------
+        STEP 3: TODO - Update the new header with the corresponding stat.
+			OBS.: You also need to make your header valid - see "setValid()" method
+       ----------------------------------------------------------------------------- */
+		hdr.switchStats.setValid();
+		hdr.switchStats.totalPackets = tmp+1;
+
     }
 }
 
@@ -172,13 +196,16 @@ control MyComputeChecksum(inout headers  hdr, inout metadata meta) {
 *************************************************************************/
 
 control MyDeparser(packet_out packet, in headers hdr) {
-    apply {
-     /* ----------------------------------------------
-        STEP 4: TODO - Write packet deparser
-        ---------------------------------------------- */
+    apply {	
+    		//Write packet deparser (Q1 step 4)
 		packet.emit(hdr.ethernet);
 		packet.emit(hdr.ipv4);
 		packet.emit(hdr.udp);
+
+	/* --------------------------------------------------------------------
+        STEP 4: TODO - Emit the new header right before the packet payload
+       -------------------------------------------------------------------- */
+		packet.emit(hdr.switchStats);
 
     }
 }
