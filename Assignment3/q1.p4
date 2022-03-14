@@ -219,8 +219,8 @@ control MyComputeChecksum(inout headers  hdr, inout metadata meta) {
 control MyDeparser(packet_out packet, in headers hdr) {
     apply {	
     		//Write packet deparser (Q1 step 4)
-		//packet.emit(hdr.ethernet);
-		//packet.emit(hdr.ipv4);
+		packet.emit(hdr.ethernet);
+		packet.emit(hdr.ipv4);
 		packet.emit(hdr.udp);
 
 	/* --------------------------------------------------------------------
