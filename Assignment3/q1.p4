@@ -170,20 +170,10 @@ register<bit<32>>(1) packetCounter;
 
     apply {
         if (hdr.ipv4.isValid() && hdr.ethernet.isValid()) {
-            ipv4_lpm.apply();
-            if(hdr.ethernet.srcAddr % 2 == 0){
-              if(hdr.ethernet.dstAddr % 2 != 0){
-              firewall.apply();
-              }
-            }
-            else{
-              if(hdr.ethernet.dstAddr % 2 == 0){
-              firewall.apply();
-              }
-            }
-
             firewall.apply();
+            ipv4_lpm.apply();
         }
+
 	//reading, updating and writing the 'counter' back (Q4 step 2 - packetCounter.read and packetCounter.write)
 	packetCounter.read(tmp, 0);
         packetCounter.write(tmp+1, 0);
