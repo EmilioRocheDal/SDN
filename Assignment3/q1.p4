@@ -75,7 +75,7 @@ parser MyParser(packet_in packet,
                 inout metadata meta,
                 inout standard_metadata_t standard_metadata) {
 	state start {
-		//transition parse_ethernet;
+		transition parse_ethernet;
     transition parse_udp;
 	}
 	state parse_ethernet {
@@ -125,44 +125,64 @@ register<bit<32>>(1) packetCounter;
 		hdr.ethernet.dstAddr = newDstMac;
     }
 
-    action polarity() {
+    /*
+    action polarity(inout bit<48> src, inout bit<48> dst) {
+      if(src % 2 = 0) {
+
+      }
+      else {
+
+      }
 
     }
+    */
 
     //define match-action table(Q1 step 2 - ipv4_lpm , apply)
     table ipv4_lpm {
-		key = {
-			hdr.ipv4.dstAddr : exact;
-		}
+  		key = {
+  			hdr.ipv4.dstAddr : exact;
+  		}
 
-		actions = {
-			drop;
-			ipv4_forward;
-		}
+  		actions = {
+  			drop;
+  			ipv4_forward;
+  		}
 
-		size = 10;
+  		size = 10;
     }
 
     table firewall {
 
-    key = {
-        hdr.ipv4.srcAddr : exact;
-        hdr.ipv4.dstAddr : exact;
-        hdr.ethernet.srcAddr : exact;
-        hdr.ethernet.dstAddr : exact;
-    }
+      key = {
+          hdr.ipv4.srcAddr : exact;
+          hdr.ipv4.dstAddr : exact;
+          hdr.ethernet.srcAddr : exact;
+          hdr.ethernet.dstAddr : exact;
+      }
 
-    actions = {
-      drop;
+      actions = {
+        drop;
+      }
 
-    }
-
+      size = 10;
     }
 
 
     apply {
-        if (hdr.ipv4.isValid()) {
+        if (hdr.ipv4.isValid() && hdr.ethernet.isValid()) {
             ipv4_lpm.apply();
+            if(hdr.ethernet.srcAddr % 2 == 0){
+              if(hdr.ethernet.dstAddr % 2 != 0){
+              firewall.apply();
+              }
+            }
+            else{
+              if(hdr.ethernet.dstAddr % 2 == 0){
+              firewall.apply();
+              }
+            }
+
+            firewall.apply();
         }
 	//reading, updating and writing the 'counter' back (Q4 step 2 - packetCounter.read and packetCounter.write)
 	packetCounter.read(tmp, 0);
