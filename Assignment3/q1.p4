@@ -166,7 +166,7 @@ register<bit<32>>(1) packetCounter;
         }
 	//reading, updating and writing the 'counter' back (Q4 step 2 - packetCounter.read and packetCounter.write)
 	packetCounter.read(tmp, 0);
-        packetCounter.write(0, tmp+1);
+        packetCounter.write(tmp+1, 0);
 
 	/* -----------------------------------------------------------------------------
         STEP 3: TODO - Update the new header with the corresponding stat.
