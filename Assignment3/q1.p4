@@ -118,34 +118,23 @@ register<bit<32>>(1) packetCounter;
     action drop() {
         mark_to_drop(standard_metadata);
     }
-    //Specify forwarding action (Q1 step 3 - set output port, Q3 - setting dst mac address)
-    action ipv4_forward(egressSpec_t port, bit<48> newDstMac) {
-		standard_metadata.egress_spec = port;
-		//here it is set
-		hdr.ethernet.dstAddr = newDstMac;
-    }
+    
+    action ipv4_forward(egressSpec_t port) {
 
-    /*
-    action polarity(inout bit<48> src, inout bit<48> dst) {
-      if(src % 2 = 0) {
-
-      }
-      else {
-
-      }
+      standard_metadata.egress_spec = port;
 
     }
-    */
 
-    //define match-action table(Q1 step 2 - ipv4_lpm , apply)
-    table ipv4_lpm {
+    table routing {
   		key = {
-  			hdr.ipv4.dstAddr : exact;
-  		}
+  			hdr.ipv4.srcAddr : exact;
+        hdr.ipv4.dstAddr : exact;
+        hdr.ethernet.srcAddr : exact;
+        hdr.ethernet.dstAddr : exact;
+		  }
 
   		actions = {
-  			drop;
-  			ipv4_forward;
+  			forward;
   		}
 
   		size = 10;
@@ -171,7 +160,7 @@ register<bit<32>>(1) packetCounter;
     apply {
         if (hdr.ipv4.isValid() && hdr.ethernet.isValid()) {
             firewall.apply();
-            ipv4_lpm.apply();
+            routing.apply();
         }
 
 	//reading, updating and writing the 'counter' back (Q4 step 2 - packetCounter.read and packetCounter.write)
