@@ -40,10 +40,6 @@ header udp_t {
     bit<16> checksum;
 }
 
-/* ---------------------------------------
-    STEP 1: TODO - Define your own header
-   --------------------------------------- */
-
 // ++++++++++++++++++++++++++++
 // |          32 bits         |
 // ++++++++++++++++++++++++++++
@@ -60,9 +56,6 @@ struct headers {
     ipv4_t       ipv4;
     udp_t		 udp;
 
-/* -------------------------------------------------------------
-    STEP 2: TODO - Add your header to the packet header vector
-   ------------------------------------------------------------- */
 	stats_t		 switchStats;
 }
 
@@ -76,7 +69,6 @@ parser MyParser(packet_in packet,
                 inout standard_metadata_t standard_metadata) {
 	state start {
 		transition parse_ethernet;
-    transition parse_udp;
 	}
 	state parse_ethernet {
 		packet.extract(hdr.ethernet);
@@ -111,15 +103,12 @@ control MyVerifyChecksum(inout headers hdr, inout metadata meta) {
 control MyIngress(inout headers hdr,
                   inout metadata meta,
                   inout standard_metadata_t standard_metadata) {
-//defining the register (Q4 step 1 - register<bit<32>>(1) ...)
-register<bit<32>>(1) packetCounter;
-    bit<32> tmp = 32w0;
 
     action drop() {
         mark_to_drop(standard_metadata);
     }
-    
-    action ipv4_forward(egressSpec_t port) {
+
+    action forward(egressSpec_t port) {
 
       standard_metadata.egress_spec = port;
 
@@ -127,33 +116,33 @@ register<bit<32>>(1) packetCounter;
 
     table routing {
   		key = {
-  			hdr.ipv4.srcAddr : exact;
-        hdr.ipv4.dstAddr : exact;
         hdr.ethernet.srcAddr : exact;
         hdr.ethernet.dstAddr : exact;
+  			hdr.ipv4.srcAddr : exact;
+        hdr.ipv4.dstAddr : exact;
 		  }
 
   		actions = {
   			forward;
   		}
 
-  		size = 10;
+  		size = 1024;
     }
 
     table firewall {
 
       key = {
-          hdr.ipv4.srcAddr : exact;
-          hdr.ipv4.dstAddr : exact;
           hdr.ethernet.srcAddr : exact;
           hdr.ethernet.dstAddr : exact;
+          hdr.ipv4.srcAddr : exact;
+          hdr.ipv4.dstAddr : exact;
       }
 
       actions = {
         drop;
       }
 
-      size = 10;
+      size = 1024;
     }
 
 
@@ -163,16 +152,6 @@ register<bit<32>>(1) packetCounter;
             routing.apply();
         }
 
-	//reading, updating and writing the 'counter' back (Q4 step 2 - packetCounter.read and packetCounter.write)
-	packetCounter.read(tmp, 0);
-        packetCounter.write(tmp+1, 0);
-
-	/* -----------------------------------------------------------------------------
-        STEP 3: TODO - Update the new header with the corresponding stat.
-			OBS.: You also need to make your header valid - see "setValid()" method
-       ----------------------------------------------------------------------------- */
-		hdr.switchStats.setValid();
-		hdr.switchStats.totalPackets = tmp+1;
 
     }
 }
