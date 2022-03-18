@@ -59,6 +59,7 @@ struct headers {
     ethernet_t   ethernet;
     ipv4_t       ipv4;
     udp_t		 udp;
+    stats_t time;
 
 /* -------------------------------------------------------------
     STEP 2: TODO - Add your header to the packet header vector
@@ -112,20 +113,18 @@ control MyVerifyChecksum(inout headers hdr, inout metadata meta) {
 control MyIngress(inout headers hdr,
                   inout metadata meta,
                   inout standard_metadata_t standard_metadata) {
-    
-  register<bit<32>>(1) packetCounter;
-    bit<32> tmp = 32w0;
+  //register creation
+  register<bit<48>>(16384) last_seen;
 
     action drop() {
         mark_to_drop(standard_metadata);
     }
-    //Specify forwarding action (Q1 step 3 - set output port, Q3 - setting dst mac address)
+    
     action ipv4_forward(egressSpec_t port, bit<48> newDstMac) {
 		standard_metadata.egress_spec = port;
 		//here it is set
 		hdr.ethernet.dstAddr = newDstMac;
     }
-    //define match-action table(Q1 step 2 - ipv4_lpm , apply)
     table ipv4_lpm {
 		key = {
 			hdr.ipv4.dstAddr : exact;
@@ -140,20 +139,16 @@ control MyIngress(inout headers hdr,
     }
 
     apply {
-        if (hdr.ipv4.isValid()) {
-            ipv4_lpm.apply();
-        }
-	//reading, updating and writing the 'counter' back (Q4 step 2 - packetCounter.read and packetCounter.write)
-	packetCounter.read(tmp, 0);
-        packetCounter.write(0, tmp+1);
 
-	/* -----------------------------------------------------------------------------
-        STEP 3: TODO - Update the new header with the corresponding stat.
-			OBS.: You also need to make your header valid - see "setValid()" method
-       ----------------------------------------------------------------------------- */
-		hdr.switchStats.setValid();
-		hdr.switchStats.totalPackets = tmp+1;
+      hdr.time.setValid();
+      if (hdr.ipv4.isValid()) {
+          ipv4_lpm.apply();
 
+      }
+      bit<48> prev_time;
+      last_seen.read(prev_time, hdr.ipv4.dstAddr);
+      hdr.time.timeStamp = standard_metadata.ingress_global_timestamp - prev_time;
+      last_seen.write(hdr.ipv4.dstAddr, standard_metadata.ingress_global_timestamp);
     }
 }
 
@@ -201,11 +196,7 @@ control MyDeparser(packet_out packet, in headers hdr) {
 		packet.emit(hdr.ethernet);
 		packet.emit(hdr.ipv4);
 		packet.emit(hdr.udp);
-
-	/* --------------------------------------------------------------------
-        STEP 4: TODO - Emit the new header right before the packet payload
-       -------------------------------------------------------------------- */
-		packet.emit(hdr.switchStats);
+		packet.emit(hdr.time);
 
     }
 }
