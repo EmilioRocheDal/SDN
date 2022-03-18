@@ -48,7 +48,7 @@ header udp_t {
 // |          32 bits         |
 // ++++++++++++++++++++++++++++
 header stats_t {
-    bit<32>	  totalPackets;
+    bit<48>	  timeStamp;
 }
 
 struct metadata {
@@ -112,8 +112,8 @@ control MyVerifyChecksum(inout headers hdr, inout metadata meta) {
 control MyIngress(inout headers hdr,
                   inout metadata meta,
                   inout standard_metadata_t standard_metadata) {
-//defining the register (Q4 step 1 - register<bit<32>>(1) ...)
-register<bit<32>>(1) packetCounter;
+    
+  register<bit<32>>(1) packetCounter;
     bit<32> tmp = 32w0;
 
     action drop() {
